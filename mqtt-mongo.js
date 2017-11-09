@@ -2,7 +2,7 @@ var mqtt = require('mqtt');
 var mongodb = require('mongodb');
 var mongoClient = mongodb.MongoClient;
 var mongoURI = 'mongodb://username:password@host:port/database';
-var deviceRoot = "arduino/sensors/"; //topic name
+var deviceRoot = "arduino/sensors/"; //topic name based on arduino code
 var collection, client;
 
 var mqtt_user = ""; //mqtt broker account username
