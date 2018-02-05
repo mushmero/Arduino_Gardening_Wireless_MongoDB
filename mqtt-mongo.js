@@ -1,37 +1,39 @@
 var mqtt = require('mqtt');
 var mongodb = require('mongodb');
+var moment = require('moment');
 var mongoClient = mongodb.MongoClient;
 var mongoURI = 'mongodb://username:password@host:port/database';
-var deviceRoot = "arduino/sensors/"; //topic name based on arduino code
+var topic = '/research/'; //topic name based on arduino code
 var collection, client;
 
-var mqtt_user = ""; //mqtt broker account username
-var mqtt_pass = ""; //mqtt broker account password
-var mqtt_host = ""; //mqtt broker host
-var mqtt_port = 17528; //mqtt broket port
+var timestamp = moment().format('D-M-Y hh:mm:ss A').utcOffset("+8.00");
 
-mongoClient.connect(mongoURI, setupCollection);
-
-function setupCollection(err, db) {
-    if (err) throw err;
-    collection = db.collection("sensors"); //name of the collection in the database
-    client = mqtt.connect({ host: mqtt_host, port: mqtt_port, username: mqtt_user, password: mqtt_pass }); //connecting the mqtt server with the MongoDB database
-    client.subscribe(deviceRoot + "+"); //subscribing to the topic name 
-    client.on('message', insertEvent); //inserting the event
+function insertEvent(topic, payload){
+	mongoClient.connect(mongoURI, function(err,db){
+		if(err){
+			console.log(err);
+			return;
+		}else{
+			var obj = JSON.parse(payload.toString());
+			var key = topic.replace(topic,'research-data-date');
+			collection = db.collection(key);
+			collection.insertOne(
+				obj,
+				function(err,docs){
+					if(err){
+						console.log("Insert failed: " +err+ "\n Timestamp: "+timestamp+ ", ");
+					}else{
+						console.log("Insert success! Timestamp: " +timestamp+ ", ");
+						db.close();
+					}
+				});
+		}
+	});
 }
 
-//function that displays the data in the MongoDataBase
-function insertEvent(topic, message) {
-    var key = topic.replace(deviceRoot, '');
+client = mqtt.connect({host:'HOST', port:17528, username:'USERNAME',password:'PASSWORD'});
+client.on('connect',function(){
+	client.subscribe(topic);
+});
 
-    collection.update({ _id: key }, { $push: { events: { event: { value: message, when: new Date() } } } }, { upsert: true },
-
-        function(err, docs) {
-            if (err) {
-                console.log("Insert fail") // Improve error handling		
-            }
-        }
-
-    );
-
-}
+client.on('message',insertEvent);
